@@ -1,76 +1,92 @@
-import matplotlib.pyplot as plt
-import easygui
-import soundfile as sf
-import pandas as pd
+import wave
+ import numpy as np
+ import matplotlib.pyplot as plt
+ import os
+ import soundfile as sf
+ from tkinter import filedialog
+
+ def openFile():  #Failų nuskaitymas kompiuteryje iš bet kurio aplanko filtruojant tik wav tipo failus. 
+     file_path = filedialog.askopenfilename(filetypes=[('any file','*.wav')])
+     return file_path
+
+ def normalizeDataValues(data):  #Visos reikšmės sunormuotos 
+     data = data / data.max()
+     return data
+
+ def getSignalInfoFromFile(file_path):
+     file = wave.open(file_path, 'rb') 
+     numberOfFrames = file.getnframes()   #grąžina garso frame skaičių  
+     frameRate = file.getframerate() #grąžina dažnį
+     dataByteString = file.readframes(numberOfFrames) # nuskaito tiek frames kiek yra garso faile
+     file.close() 
+     data = np.frombuffer(dataByteString, np.int16)
+     data = normalizeDataValues(data)
+     duration = numberOfFrames / frameRate
+     return [data, numberOfFrames, frameRate, duration]
+
+ def visualizeDiagram(title, duration, data, xlabel, ylabel, lineY = None):
+     #marker=duration+1 #Markerio/žymeklio sukūrimas
+     #while float(marker)>duration:
+     #    print ("Įveskite kurioje vietoje norite, kad būtų žymėklis (žyma privalo būti ne didesnė nei failo ilgis), kuris šiuo metu yra ", round(duration, 2))
+     #    marker= input()
+     #marker=float(marker)
+
+     durationArray = np.linspace(0, duration, num=len(data))
+     plt.plot(durationArray, data)
+     plt.title(title) #Naudojamas failo pavadinimas
+     plt.xlabel(xlabel) #Naudojamas laikas
+     plt.ylabel(ylabel) #Naudojamos normalizuotos reikšmės
+     if lineY:
+         plt.axhline(y=lineY, linewidth=0.2, color='r')
+     plt.show() 
 
 
-def openFile():  # leidžia pasirinki wav faila
-    file_path = easygui.fileopenbox()
-    return file_path
 
 
-def stereo(data):
-    # patikrina ar reiksmei galima rasti ilgi
-    return hasattr(data[0], "__len__")
+ def fadeIn(data, rate, duration, step = 0.05):
+     dataToFade = int(rate * (duration / 1000))
+     iterationLength = int(dataToFade/(1 / step))
+     currentIterationLength = 0
+     isStereo = False
+     volume = 0
+     result = []
+
+     for index in range(len(data)):
+         if (currentIterationLength > iterationLength):
+             volume = volume + step
+             currentIterationLength = 0
+
+         if (volume <= 1):
+             if (isStereo):
+                 result.append([data[index][0] * volume, data[index][1] * volume])
+             else:
+                 result.append(data[index] * volume)
+         else:
+             result.append(data[index])
+
+         currentIterationLength = currentIterationLength + 1;
+
+     return result
+
+ def fadeOut(data, rate, duration, step = 0.05):
+     return fadeIn(data[::-1], rate, duration, step)[::-1]
+
+ def fadeInOut(data, rate, duration, step = 0.05):
+     fadedIn = fadeIn(data,rate, duration, step)
+     return fadeOut(fadedIn, rate, duration, step)
 
 
-def getTmax(data):
-    if (stereo(data)):
-        data = [item for sublist in data for item in sublist]
-    return max(max(data), -min(data))
 
 
-def normalizeValues(data):
-    tmax = getTmax(data)
+ file_path = openFile()
+ [data, numberOfFrames, sampleRate, duration] = getSignalInfoFromFile(file_path)
 
-    if (stereo(data)):
-        return [[elem/tmax for elem in sublist] for sublist in data]
-    return [elem/tmax for elem in data]
+ time=0
+ time=input("Iveskite laika milisekundemis: ")
+ time=int(time)
+ fadedInOutData = fadeInOut(data, sampleRate, time)
+ sf.write('fade_in_fade_out.wav', fadedInOutData, sampleRate)
 
-
-def visualization(elements, indexes):
-    plt.figure()
-    if (stereo(elements)):
-        df = pd.DataFrame({'Left': [sublist[0] for sublist in elements], 'Right': [
-                          sublist[1] for sublist in elements]}, index=indexes)
-        df.plot()
-    else:
-        df = pd.Series(elements, index=indexes)
-        df.plot()
-
-    plt.ylabel('Reikšmės')
-    plt.xlabel('Laikas')
-
-
-def addEcho(sound_data, rate, echo_volume, delay):
-    echo_data = []
-    # indeksas, nuo kurio pridedamas aidas
-    index_delay = int((delay / 1000) * rate)
-
-    for index, value in enumerate(sound_data):
-        if (index < index_delay):  # jei nepasiektas minetas indeksas, aidas nepridedamas
-            echo_data.append(value)  # masyvas uzpildomas pradiniu garsu
-        else:
-            # gaunama suvelinto garso reiksme
-            delayed_value = sound_data[index-index_delay]
-            echo_data.append(value + echo_volume *
-                             delayed_value)  # masyvas uzpildomas echo pagal formule
-
-    return echo_data
-
-
-file_path = openFile()
-data, rate = sf.read(file_path)
-
-echo_data = addEcho(data, rate, 0.5, 200)
-
-normalized_original = normalizeValues(data)
-normalized_echo = normalizeValues(echo_data)
-
-indexes = [index/rate for index in range(len(data))]
-
-sf.write('sound_with_echo.wav', echo_data, rate)
-
-visualization(normalized_original, indexes)
-visualization(normalized_echo, indexes)
-plt.show()
+ filename = os.path.basename(file_path)
+ visualizeDiagram(filename, duration, data, "Laikas", "Normalizuotos reikšmės")
+ visualizeDiagram(filename, duration, fadedInOutData, "Laikas", "Normalizuotos reikšmės ")
