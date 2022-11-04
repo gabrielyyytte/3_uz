@@ -6,23 +6,23 @@ import soundfile as sf
 from tkinter import filedialog
 
 def openFile():  #Failų nuskaitymas kompiuteryje iš bet kurio aplanko filtruojant tik wav tipo failus. 
-     file_path = filedialog.askopenfilename(filetypes=[('any file','*.wav')])
-     return file_path
+    file_path = filedialog.askopenfilename(filetypes=[('any file','*.wav')])
+    return file_path
 
 def normalizeDataValues(data):  #Visos reikšmės sunormuotos 
-     data = data / data.max()
-     return data
+    data = data / data.max()
+    return data
 
 def getSignalInfoFromFile(file_path):
-     file = wave.open(file_path, 'rb') 
-     numberOfFrames = file.getnframes()   #grąžina garso frame skaičių  
-     frameRate = file.getframerate() #grąžina dažnį
-     dataByteString = file.readframes(numberOfFrames) # nuskaito tiek frames kiek yra garso faile
-     file.close() 
-     data = np.frombuffer(dataByteString, np.int16)
-     data = normalizeDataValues(data)
-     duration = numberOfFrames / frameRate
-     return [data, numberOfFrames, frameRate, duration]
+    file = wave.open(file_path, 'rb') 
+    numberOfFrames = file.getnframes()   #grąžina garso frame skaičių  
+    frameRate = file.getframerate() #grąžina dažnį
+    dataByteString = file.readframes(numberOfFrames) # nuskaito tiek frames kiek yra garso faile
+    file.close() 
+    data = np.frombuffer(dataByteString, np.int16)
+    data = normalizeDataValues(data)
+    duration = numberOfFrames / frameRate
+    return [data, numberOfFrames, frameRate, duration]
 
 def visualizeDiagram(title, duration, data, xlabel, ylabel, lineY = None):
      #marker=duration+1 #Markerio/žymeklio sukūrimas
@@ -31,14 +31,14 @@ def visualizeDiagram(title, duration, data, xlabel, ylabel, lineY = None):
      #    marker= input()
      #marker=float(marker)
 
-     durationArray = np.linspace(0, duration, num=len(data))
-     plt.plot(durationArray, data)
-     plt.title(title) #Naudojamas failo pavadinimas
-     plt.xlabel(xlabel) #Naudojamas laikas
-     plt.ylabel(ylabel) #Naudojamos normalizuotos reikšmės
-     if lineY:
-         plt.axhline(y=lineY, linewidth=0.2, color='r')
-     plt.show() 
+    durationArray = np.linspace(0, duration, num=len(data))
+    plt.plot(durationArray, data)
+    plt.title(title) #Naudojamas failo pavadinimas
+    plt.xlabel(xlabel) #Naudojamas laikas
+    plt.ylabel(ylabel) #Naudojamos normalizuotos reikšmės
+    if lineY:
+        plt.axhline(y=lineY, linewidth=0.2, color='r')
+    plt.show() 
 
 
 
